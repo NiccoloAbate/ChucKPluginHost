@@ -178,4 +178,4 @@ Check the `tests/` directory for comprehensive examples:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details (if applicable). JUCE is used under its own licensing terms.
+This project is licensed under the MIT License. JUCE is used under its own licensing terms.
