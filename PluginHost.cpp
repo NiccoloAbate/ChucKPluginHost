@@ -967,11 +967,11 @@ CK_DLL_QUERY( PluginHost )
     QUERY->doc_func(QUERY, "Check if an async event is running.");
 
     QUERY->add_mfun(QUERY, pluginhost_waitForAsyncEvents, "void", "waitForAsyncEvents");
-    QUERY->doc_func(QUERY, "Wait for all async events to finish. WARNING: This is not realtime safe and should only be used in non-realtime contexts (such as setup) or for debugging.");
+    QUERY->doc_func(QUERY, "Blocks the current ChucK shred until all pending async events finish. WARNING: Not realtime-safe. Also incompatible with ChuGl (GG.nextFrame()) contexts -- calling this inside a GG.nextFrame() loop will deadlock, because it blocks the shred, preventing GG.nextFrame() from being called, which in turn blocks the main thread that would process the pending event. Use the asyncEventRunning() polling pattern instead (see forceSynchronous docs).");
 
     QUERY->add_mfun(QUERY, pluginhost_setForceSynchronous, "int", "forceSynchronous");
     QUERY->add_arg(QUERY, "int", "b");
-    QUERY->doc_func(QUERY, "Set whether to force synchronous execution of main thread events. If true, there is no need to wait on asynchronous events, but audio processing may block.");
+    QUERY->doc_func(QUERY, "Set whether main-thread operations (load, saveState, loadState, showEditor, etc.) block until complete (true, default) or fire asynchronously (false). WARNING: forceSynchronous(true) is INCOMPATIBLE with ChuGl (GG.nextFrame()) contexts. The JUCE main thread and ChuGl's render loop both own the same thread; blocking the shred waiting for the main thread while ChuGl is also waiting for the shred to call GG.nextFrame() causes an unrecoverable deadlock. Safe to use before the first GG.nextFrame() call (e.g. during setup). Inside a GG.nextFrame() loop, use forceSynchronous(false) and poll asyncEventRunning() each frame instead: plugin.load(path); while (plugin.asyncEventRunning()) { GG.nextFrame() => now; }");
 
     QUERY->add_mfun(QUERY, pluginhost_getForceSynchronous, "int", "forceSynchronous");
     QUERY->doc_func(QUERY, "Get whether synchronous execution of main thread events is forced.");

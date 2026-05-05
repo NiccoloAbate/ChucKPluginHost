@@ -198,10 +198,15 @@ private:
     // number of currently running asynchronous events
     std::atomic<int> m_asyncEventCount { 0 };
 
-    // If true all main thread events will be force to be "synchronous" (i.e. blocking audio process until they finish).
-    // This is simpler for user (since they don't have to manage waiting for asynchronous events) and nice for debugging
-    // but it is fundamentally bad audio programming practice - it may result in unnecessary audio dropouts,
-    // and, depending on the way ChucK handles the main thread events, it may result in deadlocks.
-    // Deadlocks don't seem to occur in practice with ChucK though, and this greatly simplified usage.
-    bool m_forceSynchronous = true;
+    // If true, main-thread operations (load, saveState, loadState, showEditor, etc.) block until complete.
+    // Simpler to use, but has two drawbacks:
+    //   1. Audio dropouts: blocking the audio thread while a heavy plugin loads can cause glitches.
+    //   2. Deadlock with ChuGl: ChuGl's render loop and JUCE's message thread both run on the main thread.
+    //      If a shred calls a synchronous PluginHost operation inside a GG.nextFrame() loop, the shred blocks
+    //      waiting for the main thread, but the main thread is waiting for the shred to call GG.nextFrame() --
+    //      an unrecoverable deadlock. callOnMessageThreadSync() will print a warning after 500ms in this case.
+    //      Safe to use before the first GG.nextFrame() call (e.g. during setup).
+    //      Inside a GG loop, poll asyncEventRunning() each frame instead.
+    // Default is false (async).
+    bool m_forceSynchronous = false;
 };

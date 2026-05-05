@@ -54,6 +54,9 @@ The Chugin links against a static library of JUCE to keep the build process effi
 // Create a PluginHost instance and connect to dac
 PluginHost plugin => dac;
 
+// Use synchronous mode for setup (safe here since no GG.nextFrame() loop is running)
+plugin.forceSynchronous(true);
+
 // Load a VST3 plugin
 plugin.load("/Library/Audio/Plug-Ins/VST3/Plugin.vst3");
 
@@ -72,16 +75,65 @@ plugin.param(paramIndex, 0.5)
 
 ## Synchronous vs. Asynchronous Events
 
-By default, `PluginHost` operates in **Synchronous Mode** (`forceSynchronous(true)`). 
+By default, `PluginHost` operates in **Asynchronous Mode** (`forceSynchronous(false)`).
 
-In this mode, any operation that must happen on the main thread (such as `load()`, `showEditor()`, `saveState()`, or `loadState()`) will block the audio process and the ChucK VM until the operation is complete. 
+In this mode, operations that must run on the main thread (`load()`, `showEditor()`, `saveState()`, `loadState()`) block the ChucK shred and audio process until they complete.
 
-### Why this matters:
-- **Simplicity**: You don't have to manage timing (which can be confusing and hard to reason about) or wait for callbacks.
-- **Audio Performance**: Blocking the audio process can lead to "dropouts" or glitches in the audio stream if the operation (like loading a heavy plugin) takes too long. In practice that may not matter if all these events happend during program initialization or other non-realtime junctures.
-- **Safety**: There is a theoretical risk of deadlocks, though this hasn't been observed in standard ChucK usage.
+### Trade-offs
 
-For high-performance or real-time applications where you want to load plugins without glitching existing audio set `forceSynchronous(false)` and use `asyncEventRunning()` or `waitForAsyncEvents()` to manage the lifecycle of these operations.
+- **Simplicity**: No need to manage timing or poll for completion — the operation is done when the call returns.
+- **Audio dropouts**: Blocking the audio thread while a heavy plugin loads can cause glitches. In practice this is only a concern if loading during live playback rather than during setup.
+- **Deadlock with ChuGl**: See below.
+
+For non-blocking operation, set `forceSynchronous(false)` and use `asyncEventRunning()` to poll for completion.
+
+### Incompatibility with ChuGl (`GG.nextFrame()`)
+
+> **`forceSynchronous(true)` will deadlock inside a `GG.nextFrame()` loop. `waitForAsyncEvents()` has the same problem.**
+
+The root cause: JUCE's message thread and ChuGl's render loop both run on the same OS main thread. When a shred calls a synchronous PluginHost operation inside a `GG.nextFrame()` loop, it blocks waiting for the main thread to process the JUCE message. But ChuGl's render loop is simultaneously blocked in `Sync_WaitOnUpdateDone()`, waiting for the shred to call `GG.nextFrame()` again. Neither can proceed.
+
+`forceSynchronous(true)` is safe to use **before the first `GG.nextFrame()` call** (i.e., during setup), because ChuGl has not yet taken over the main thread at that point.
+
+**Inside a `GG.nextFrame()` loop**, use async mode and poll `asyncEventRunning()` each frame:
+
+```chuck
+PluginHost plugin => dac;
+plugin.forceSynchronous(false);  // must be async inside GG loop
+
+// load during setup (before GG loop) is fine with forceSynchronous(true)
+
+// time loop
+while (true)
+{
+    GG.nextFrame() => now;
+
+    // reload on keypress, for example
+    if (wantReload)
+    {
+        plugin.load("/path/to/plugin.vst3");
+
+        // if you need to wait for the load to finish, you can do so with the following code
+        // each GG.nextFrame() yields to the main thread, which processes the JUCE message
+        while (plugin.asyncEventRunning()) { GG.nextFrame() => now; }
+    }
+}
+```
+
+Alternatively, spork the load into a helper shred that doesn't participate in the GG sync system:
+
+```chuck
+fun void loadAsync(string path)
+{
+    plugin.load(path);
+}
+
+while (true)
+{
+    GG.nextFrame() => now;
+    if (wantReload) spork ~ loadAsync("/path/to/plugin.vst3");
+}
+```
 
 ## API Reference
 
@@ -146,7 +198,7 @@ For high-performance or real-time applications where you want to load plugins wi
 - `void toggleQWERTYMidiInput()`: Toggle the computer keyboard MIDI input window.
 
 ### Async & Configuration
-- `void forceSynchronous(int b)`: If true (default), wait for async events (like loading) to complete before returning.
+- `void forceSynchronous(int b)`: If true, wait for async events (like loading) to complete before returning. Default is false.
 - `int forceSynchronous()`: Check if synchronous mode is active.
 - `int asyncEventRunning()`: Returns true (1) if an asynchronous operation is currently in progress.
 - `void waitForAsyncEvents()`: Blocks the current ChucK shred until all pending async events are finished. **Warning:** This is not real-time safe.
@@ -174,7 +226,7 @@ Check the `tests/` directory for comprehensive examples:
 - `transport_sync.ck`: Synchronizing LFOs and sequencers via the playhead.
 - `plugin_chain.ck`: Chaining multiple `PluginHost` instances.
 - `midi_expressive.ck`: Expressive midi controls such as pitch bend and mod wheel.
-- `destroy.ck`: Destructive of a plugin during runtime.
+- `destroy.ck`: Destruction of a plugin during runtime.
 
 ## License
 
