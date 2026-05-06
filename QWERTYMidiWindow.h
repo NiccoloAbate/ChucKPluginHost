@@ -9,8 +9,8 @@ class QWERTYMidiWindow : public juce::DocumentWindow
 {
 public:
 
-    QWERTYMidiWindow(juce::MidiKeyboardState& state, std::function<void()> onClosed)
-        : juce::DocumentWindow("QWERTY MIDI Input", juce::Colours::darkgrey, juce::DocumentWindow::closeButton),
+    QWERTYMidiWindow(const juce::String& title, juce::MidiKeyboardState& state, std::function<void()> onClosed)
+        : juce::DocumentWindow(title, juce::Colours::darkgrey, juce::DocumentWindow::closeButton),
           m_onClosed(onClosed)
     {
         auto* keyboard = new juce::MidiKeyboardComponent(state, juce::MidiKeyboardComponent::horizontalKeyboard);

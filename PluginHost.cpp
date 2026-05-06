@@ -774,7 +774,12 @@ void PluginHost::addQWERTYMidiInput()
         }
 
         ensureForegroundProcess();
-        m_qwertyWindow.reset(new QWERTYMidiWindow(m_keyboardState, [this]() { m_qwertyWindow.reset(); }));
+
+        juce::String title = "QWERTY MIDI Input";
+        if (m_plugin)
+            title += " - " + m_plugin->getName();
+
+        m_qwertyWindow.reset(new QWERTYMidiWindow(title, m_keyboardState, [this]() { m_qwertyWindow.reset(); }));
     });
 }
 
