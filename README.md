@@ -10,6 +10,7 @@
 - **GUI Support**: Show and hide the plugin's native graphical editor window.
 - **State Management**: Save and load plugin state (presets) to/from files.
 - **Transport Sync**: Synchronize plugin timing with built in playhead (BPM, time signature, position, etc.).
+- **MIDI Controller Support**: Route physical MIDI input devices directly to a plugin instance.
 - **QWERTY MIDI**: Optional QWERTY keyboard window for playing plugins with your computer keyboard.
 - **Synchronous/Asynchronous Modes**: Choose between simplified synchronous operations or non-blocking asynchronous events.
 
@@ -196,6 +197,8 @@ while (true)
 - `void addQWERTYMidiInput()`: Open the computer keyboard MIDI input window.
 - `void removeQWERTYMidiInput()`: Close the computer keyboard MIDI input window.
 - `void toggleQWERTYMidiInput()`: Toggle the computer keyboard MIDI input window.
+- `int midiControllerEnabled(int enable)`: Enable or disable physical MIDI controller input.
+- `int midiControllerEnabled()`: Check if MIDI controller input is enabled.
 
 ### Async & Configuration
 - `void forceSynchronous(int b)`: If true, wait for async events (like loading) to complete before returning. Default is false.

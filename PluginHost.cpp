@@ -105,6 +105,8 @@ CK_DLL_MFUN(pluginhost_midiMsg);
 CK_DLL_MFUN(pluginhost_addQWERTYMidiInput);
 CK_DLL_MFUN(pluginhost_removeQWERTYMidiInput);
 CK_DLL_MFUN(pluginhost_toggleQWERTYMidiInput);
+CK_DLL_MFUN(pluginhost_setMidiControllerEnabled);
+CK_DLL_MFUN(pluginhost_isMidiControllerEnabled);
 
 //-----------------------------------------------------------------------------
 // tick function
@@ -1258,6 +1260,13 @@ CK_DLL_QUERY( PluginHost )
     QUERY->add_mfun(QUERY, pluginhost_toggleQWERTYMidiInput, "void", "toggleQWERTYMidiInput");
     QUERY->doc_func(QUERY, "Toggle the QWERTY MIDI input window.");
 
+    QUERY->add_mfun(QUERY, pluginhost_setMidiControllerEnabled, "int", "midiControllerEnabled");
+    QUERY->add_arg(QUERY, "int", "b");
+    QUERY->doc_func(QUERY, "Enable or disable physical MIDI controller input to the plugin.");
+
+    QUERY->add_mfun(QUERY, pluginhost_isMidiControllerEnabled, "int", "midiControllerEnabled");
+    QUERY->doc_func(QUERY, "Check if physical MIDI controller input is enabled.");
+
     //-------------------------------------------------------------------------
     // data offset
     //-------------------------------------------------------------------------
@@ -1785,4 +1794,18 @@ CK_DLL_MFUN(pluginhost_toggleQWERTYMidiInput)
 {
     PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
     if( ph_obj ) ph_obj->toggleQWERTYMidiInput();
+}
+
+CK_DLL_MFUN(pluginhost_setMidiControllerEnabled)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKINT b = GET_NEXT_INT(ARGS);
+    if( ph_obj ) ph_obj->setMidiControllerEnabled(b != 0);
+    RETURN->v_int = b;
+}
+
+CK_DLL_MFUN(pluginhost_isMidiControllerEnabled)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    RETURN->v_int = ph_obj ? (ph_obj->isMidiControllerEnabled() ? 1 : 0) : 0;
 }
