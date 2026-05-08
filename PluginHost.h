@@ -129,6 +129,9 @@ public:
     void removeQWERTYMidiInput();
     void toggleQWERTYMidiInput();
 
+    void setMidiControllerEnabled(bool b);
+    bool isMidiControllerEnabled() const;
+
     // for now used fixed number of channels
     static constexpr int maxChannels = 8;
 
@@ -154,6 +157,9 @@ private:
     juce::MidiBuffer m_inputMidi;
     // processed MIDI buffer which will store the midi output
     juce::MidiBuffer m_outputMidi;
+
+    // midi controller enabled
+    bool m_midiControllerEnabled = false;
 
     // brute force synchronization - use sparingly
     // currently used for protecting critical audio processing code, such as resizing buffers

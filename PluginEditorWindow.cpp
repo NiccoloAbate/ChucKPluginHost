@@ -74,6 +74,7 @@ juce::PopupMenu PluginEditorWindow::getMenuForIndex(int menuIndex, const juce::S
         menu.addItem(1, "Save State...");
         menu.addItem(2, "Load State...");
         menu.addItem(3, "QWERTY Keyboard");
+        menu.addItem(4, "MIDI Controller", true, host.isMidiControllerEnabled());
     }
 
     return menu;
@@ -108,6 +109,7 @@ void PluginEditorWindow::menuItemSelected(int menuID, int /*topLevelMenuIndex*/)
             break;
         }
         case 3: host.addQWERTYMidiInput(); break;
+        case 4: host.setMidiControllerEnabled(!host.isMidiControllerEnabled()); break;
         default: break;
     }
 }

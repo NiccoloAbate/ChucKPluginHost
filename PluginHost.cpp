@@ -120,13 +120,85 @@ t_CKINT pluginhost_data_offset = 0;
 //-----------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------
+// MidiControllerManager
+//-------------------------------------------------------------------------
+class MidiControllerManager : private juce::MidiInputCallback
+{
+public:
+    static MidiControllerManager& getInstance()
+    {
+        static MidiControllerManager instance;
+        return instance;
+    }
+
+    void subscribe(PluginHost* host)
+    {
+        juce::ScopedLock sl(m_lock);
+        if (std::find(m_subscribers.begin(), m_subscribers.end(), host) == m_subscribers.end())
+        {
+            m_subscribers.push_back(host);
+            updateInputs();
+        }
+    }
+
+    void unsubscribe(PluginHost* host)
+    {
+        juce::ScopedLock sl(m_lock);
+        m_subscribers.erase(std::remove(m_subscribers.begin(), m_subscribers.end(), host), m_subscribers.end());
+        if (m_subscribers.empty())
+        {
+            m_inputs.clear();
+        }
+    }
+
+private:
+    MidiControllerManager() {}
+    ~MidiControllerManager() { m_inputs.clear(); }
+
+    void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message) override
+    {
+        juce::ScopedLock sl(m_lock);
+        for (auto* host : m_subscribers)
+        {
+            host->addMidiEvent(message);
+        }
+    }
+
+    void updateInputs()
+    {
+        if (m_subscribers.empty())
+        {
+            m_inputs.clear();
+            return;
+        }
+
+        if (!m_inputs.empty()) return; // Already opened
+
+        auto devices = juce::MidiInput::getAvailableDevices();
+        for (auto& d : devices)
+        {
+            if (auto input = juce::MidiInput::openDevice(d.identifier, this))
+            {
+                input->start();
+                m_inputs.push_back(std::move(input));
+            }
+        }
+    }
+
+    juce::CriticalSection m_lock;
+    std::vector<PluginHost*> m_subscribers;
+    std::vector<std::unique_ptr<juce::MidiInput>> m_inputs;
+};
+
+//-------------------------------------------------------------------------
 // constructor/destructor
 //-------------------------------------------------------------------------
 PluginHost::PluginHost( t_CKFLOAT fs )
 :
   m_renderBuffer(maxChannels, 16),
   m_inputBuffer(maxChannels, maxBufferSize + 1),
-  m_outputBuffer(maxChannels, maxBufferSize + 1)
+  m_outputBuffer(maxChannels, maxBufferSize + 1),
+  m_midiControllerEnabled(false)
 {
     m_srate = fs;
     // default block size
@@ -141,6 +213,9 @@ PluginHost::PluginHost( t_CKFLOAT fs )
 
 PluginHost::~PluginHost()
 {
+    // unsubscribe from MIDI controller manager
+    setMidiControllerEnabled(false);
+
     // wait for any pending async events just in case
     waitForAsyncEvents(100);
 
@@ -797,6 +872,21 @@ void PluginHost::toggleQWERTYMidiInput()
         removeQWERTYMidiInput();
     else
         addQWERTYMidiInput();
+}
+
+void PluginHost::setMidiControllerEnabled(bool b)
+{
+    if (m_midiControllerEnabled == b) return;
+    m_midiControllerEnabled = b;
+    if (m_midiControllerEnabled)
+        MidiControllerManager::getInstance().subscribe(this);
+    else
+        MidiControllerManager::getInstance().unsubscribe(this);
+}
+
+bool PluginHost::isMidiControllerEnabled() const
+{
+    return m_midiControllerEnabled;
 }
 
 std::shared_ptr<PluginHost::AsyncEventContext> PluginHost::createAsyncEventContext()
