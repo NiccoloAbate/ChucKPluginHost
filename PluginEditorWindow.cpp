@@ -109,7 +109,14 @@ void PluginEditorWindow::menuItemSelected(int menuID, int /*topLevelMenuIndex*/)
             break;
         }
         case 3: host.addQWERTYMidiInput(); break;
-        case 4: host.setMidiControllerEnabled(!host.isMidiControllerEnabled()); break;
+        case 4: 
+            host.setMidiControllerEnabled(!host.isMidiControllerEnabled()); 
+            menuItemsChanged();
+#if JUCE_MAC
+            juce::MenuBarModel::setMacMainMenu(nullptr);
+            juce::MenuBarModel::setMacMainMenu(this);
+#endif
+            break;
         default: break;
     }
 }
