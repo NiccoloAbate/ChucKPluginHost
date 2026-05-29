@@ -165,8 +165,8 @@ while (true)
 - `void noteOn(int note, float velocity, int channel)`: Send Note On (channel 1-16).
 - `void noteOff(int note)`: Send Note Off (channel 1).
 - `void noteOff(int note, int channel)`: Send Note Off (channel 1-16).
-- `void controlChange(int control, int value)`: Send CC (channel 1).
-- `void controlChange(int control, int value, int channel)`: Send CC (channel 1-16).
+- `void controlChange(int control, float value)`: Send CC (channel 1).
+- `void controlChange(int control, float value, int channel)`: Send CC (channel 1-16).
 - `void pitchBend(float value)`: Send Pitch Bend (-1.0 to 1.0) (channel 1).
 - `void pitchBend(float value, int channel)`: Send Pitch Bend (-1.0 to 1.0) (channel 1-16).
 - `void aftertouch(int note, float pressure)`: Polyphonic aftertouch (channel 1).

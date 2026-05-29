@@ -805,7 +805,7 @@ void PluginHost::allNotesOff(int channel)
 void PluginHost::pitchBend(float value, int channel)
 {
     channel = std::clamp(channel, 1, 16);
-    int wheelValue = (int)((value + 1.0f) * 8191.5f);
+    int wheelValue = (int)std::round((value + 1.0f) * 8191.5f);
     wheelValue = std::clamp(wheelValue, 0, 16383);
     addMidiEvent(juce::MidiMessage::pitchWheel(channel, wheelValue));
 }
@@ -813,19 +813,19 @@ void PluginHost::pitchBend(float value, int channel)
 void PluginHost::aftertouch(int noteNumber, float pressure, int channel)
 {
     channel = std::clamp(channel, 1, 16);
-    addMidiEvent(juce::MidiMessage::aftertouchChange(channel, (juce::uint8)noteNumber, (juce::uint8)(pressure * 127.0f)));
+    addMidiEvent(juce::MidiMessage::aftertouchChange(channel, (juce::uint8)noteNumber, (juce::uint8)std::clamp((int)std::round(pressure * 127.0f), 0, 127)));
 }
 
 void PluginHost::aftertouchChannel(float pressure, int channel)
 {
     channel = std::clamp(channel, 1, 16);
-    addMidiEvent(juce::MidiMessage::channelPressureChange(channel, (juce::uint8)(pressure * 127.0f)));
+    addMidiEvent(juce::MidiMessage::channelPressureChange(channel, (juce::uint8)std::clamp((int)std::round(pressure * 127.0f), 0, 127)));
 }
 
-void PluginHost::controlChange(int controlNumber, int value, int channel)
+void PluginHost::controlChange(int controlNumber, float value, int channel)
 {
     channel = std::clamp(channel, 1, 16);
-    addMidiEvent(juce::MidiMessage::controllerEvent(channel, controlNumber, (juce::uint8)value));
+    addMidiEvent(juce::MidiMessage::controllerEvent(channel, controlNumber, (juce::uint8)std::clamp((int)std::round(value * 127.0f), 0, 127)));
 }
 
 void PluginHost::midiMsg(int byte1, int byte2, int byte3)
@@ -1236,13 +1236,13 @@ CK_DLL_QUERY( PluginHost )
 
     QUERY->add_mfun(QUERY, pluginhost_controlChange, "void", "controlChange");
     QUERY->add_arg(QUERY, "int", "control");
-    QUERY->add_arg(QUERY, "int", "value");
+    QUERY->add_arg(QUERY, "float", "value");
     QUERY->add_arg(QUERY, "int", "channel");
     QUERY->doc_func(QUERY, "Send a MIDI Control Change message. Channel is 1-16.");
 
     QUERY->add_mfun(QUERY, pluginhost_controlChange_default, "void", "controlChange");
     QUERY->add_arg(QUERY, "int", "control");
-    QUERY->add_arg(QUERY, "int", "value");
+    QUERY->add_arg(QUERY, "float", "value");
     QUERY->doc_func(QUERY, "Send a MIDI Control Change message on default channel 1.");
 
     QUERY->add_mfun(QUERY, pluginhost_midiMsg, "void", "midiMsg");
@@ -1709,17 +1709,17 @@ CK_DLL_MFUN(pluginhost_controlChange)
 {
     PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
     t_CKINT ctrl = GET_NEXT_INT(ARGS);
-    t_CKINT val = GET_NEXT_INT(ARGS);
+    t_CKFLOAT val = GET_NEXT_FLOAT(ARGS);
     t_CKINT chan = GET_NEXT_INT(ARGS);
-    if( ph_obj ) ph_obj->controlChange(ctrl, val, chan);
+    if( ph_obj ) ph_obj->controlChange(ctrl, (float)val, chan);
 }
 
 CK_DLL_MFUN(pluginhost_controlChange_default)
 {
     PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
     t_CKINT ctrl = GET_NEXT_INT(ARGS);
-    t_CKINT val = GET_NEXT_INT(ARGS);
-    if( ph_obj ) ph_obj->controlChange(ctrl, val, 1);
+    t_CKFLOAT val = GET_NEXT_FLOAT(ARGS);
+    if( ph_obj ) ph_obj->controlChange(ctrl, (float)val, 1);
 }
 
 CK_DLL_MFUN(pluginhost_midiMsg)

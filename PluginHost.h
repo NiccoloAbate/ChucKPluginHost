@@ -122,7 +122,7 @@ public:
     void pitchBend(float value, int channel);
     void aftertouch(int noteNumber, float pressure, int channel);
     void aftertouchChannel(float pressure, int channel);
-    void controlChange(int controlNumber, int value, int channel);
+    void controlChange(int controlNumber, float value, int channel);
     void midiMsg(int byte1, int byte2, int byte3);
     void addMidiEvent(const juce::MidiMessage& msg);
     void addQWERTYMidiInput();
