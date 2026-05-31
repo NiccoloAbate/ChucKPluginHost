@@ -102,6 +102,11 @@ CK_DLL_MFUN(pluginhost_aftertouchChannel_default);
 CK_DLL_MFUN(pluginhost_controlChange);
 CK_DLL_MFUN(pluginhost_controlChange_default);
 CK_DLL_MFUN(pluginhost_midiMsg);
+CK_DLL_MFUN(pluginhost_midiMap);
+CK_DLL_MFUN(pluginhost_midiMap_default);
+CK_DLL_MFUN(pluginhost_midiUnmap);
+CK_DLL_MFUN(pluginhost_midiUnmap_default);
+CK_DLL_MFUN(pluginhost_midiUnmapAll);
 CK_DLL_MFUN(pluginhost_addQWERTYMidiInput);
 CK_DLL_MFUN(pluginhost_removeQWERTYMidiInput);
 CK_DLL_MFUN(pluginhost_toggleQWERTYMidiInput);
@@ -211,6 +216,9 @@ PluginHost::PluginHost( t_CKFLOAT fs )
     
     // register plugin formats
     m_formatManager.addDefaultFormats();
+
+    // initialize MIDI mappings
+    midiUnmapAll();
 }
 
 PluginHost::~PluginHost()
@@ -835,9 +843,42 @@ void PluginHost::midiMsg(int byte1, int byte2, int byte3)
 
 void PluginHost::addMidiEvent(const juce::MidiMessage& msg)
 {
+    if (msg.isController())
+    {
+        int chan = msg.getChannel(); // 1-16
+        int cc = msg.getControllerNumber(); // 0-127
+        if (chan >= 1 && chan <= 16 && cc >= 0 && cc <= 127)
+        {
+            int paramIndex = m_midiMappings[chan - 1][cc];
+            if (paramIndex >= 0)
+                setParam(paramIndex, msg.getControllerValue() / 127.0f);
+        }
+    }
+
     int timestamp = m_inputBuffer.getAvailableSamples();
     timestamp = std::max(0, std::min(m_blockSize - 1, timestamp));
     m_inputMidi.addEvent(msg, timestamp);
+}
+
+void PluginHost::midiMap(int controlNumber, int paramIndex, int channel)
+{
+    channel = std::clamp(channel, 1, 16);
+    if (controlNumber >= 0 && controlNumber <= 127)
+        m_midiMappings[channel - 1][controlNumber] = paramIndex;
+}
+
+void PluginHost::midiUnmap(int controlNumber, int channel)
+{
+    channel = std::clamp(channel, 1, 16);
+    if (controlNumber >= 0 && controlNumber <= 127)
+        m_midiMappings[channel - 1][controlNumber] = -1;
+}
+
+void PluginHost::midiUnmapAll()
+{
+    for (int c = 0; c < 16; ++c)
+        for (int i = 0; i < 128; ++i)
+            m_midiMappings[c][i] = -1;
 }
 
 void PluginHost::addQWERTYMidiInput()
@@ -1250,6 +1291,29 @@ CK_DLL_QUERY( PluginHost )
     QUERY->add_arg(QUERY, "int", "byte2");
     QUERY->add_arg(QUERY, "int", "byte3");
     QUERY->doc_func(QUERY, "Send a raw 3-byte MIDI message.");
+
+    QUERY->add_mfun(QUERY, pluginhost_midiMap, "void", "midiMap");
+    QUERY->add_arg(QUERY, "int", "control");
+    QUERY->add_arg(QUERY, "int", "paramIndex");
+    QUERY->add_arg(QUERY, "int", "channel");
+    QUERY->doc_func(QUERY, "Map a MIDI CC to a plugin parameter. Channel is 1-16.");
+
+    QUERY->add_mfun(QUERY, pluginhost_midiMap_default, "void", "midiMap");
+    QUERY->add_arg(QUERY, "int", "control");
+    QUERY->add_arg(QUERY, "int", "paramIndex");
+    QUERY->doc_func(QUERY, "Map a MIDI CC to a plugin parameter on default channel 1.");
+
+    QUERY->add_mfun(QUERY, pluginhost_midiUnmap, "void", "midiUnmap");
+    QUERY->add_arg(QUERY, "int", "control");
+    QUERY->add_arg(QUERY, "int", "channel");
+    QUERY->doc_func(QUERY, "Unmap a MIDI CC from a plugin parameter. Channel is 1-16.");
+
+    QUERY->add_mfun(QUERY, pluginhost_midiUnmap_default, "void", "midiUnmap");
+    QUERY->add_arg(QUERY, "int", "control");
+    QUERY->doc_func(QUERY, "Unmap a MIDI CC from a plugin parameter on default channel 1.");
+
+    QUERY->add_mfun(QUERY, pluginhost_midiUnmapAll, "void", "midiUnmapAll");
+    QUERY->doc_func(QUERY, "Clear all MIDI CC to parameter mappings.");
 
     QUERY->add_mfun(QUERY, pluginhost_addQWERTYMidiInput, "void", "addQWERTYMidiInput");
     QUERY->doc_func(QUERY, "Add a QWERTY MIDI input window to route computer keyboard input to the plugin.");
@@ -1729,6 +1793,44 @@ CK_DLL_MFUN(pluginhost_midiMsg)
     t_CKINT b2 = GET_NEXT_INT(ARGS);
     t_CKINT b3 = GET_NEXT_INT(ARGS);
     if( ph_obj ) ph_obj->midiMsg(b1, b2, b3);
+}
+
+CK_DLL_MFUN(pluginhost_midiMap)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKINT ctrl = GET_NEXT_INT(ARGS);
+    t_CKINT param = GET_NEXT_INT(ARGS);
+    t_CKINT chan = GET_NEXT_INT(ARGS);
+    if( ph_obj ) ph_obj->midiMap(ctrl, param, chan);
+}
+
+CK_DLL_MFUN(pluginhost_midiMap_default)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKINT ctrl = GET_NEXT_INT(ARGS);
+    t_CKINT param = GET_NEXT_INT(ARGS);
+    if( ph_obj ) ph_obj->midiMap(ctrl, param, 1);
+}
+
+CK_DLL_MFUN(pluginhost_midiUnmap)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKINT ctrl = GET_NEXT_INT(ARGS);
+    t_CKINT chan = GET_NEXT_INT(ARGS);
+    if( ph_obj ) ph_obj->midiUnmap(ctrl, chan);
+}
+
+CK_DLL_MFUN(pluginhost_midiUnmap_default)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKINT ctrl = GET_NEXT_INT(ARGS);
+    if( ph_obj ) ph_obj->midiUnmap(ctrl, 1);
+}
+
+CK_DLL_MFUN(pluginhost_midiUnmapAll)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    if( ph_obj ) ph_obj->midiUnmapAll();
 }
 
 CK_DLL_MFUN(pluginhost_pitchBend)

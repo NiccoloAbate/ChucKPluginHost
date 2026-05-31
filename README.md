@@ -6,7 +6,7 @@
 
 - **Multi-Format Support**: Load VST3, VST (Legacy), and AU (macOS only) plugins.
 - **Parameter Automation**: Access, get, and set plugin parameters by index or name.
-- **MIDI Integration**: Send MIDI Note On, Note Off, Pitch Bend, Aftertouch, and Control Change messages to plugins.
+- **MIDI Integration**: Send MIDI messages (Note On/Off, Pitch Bend, etc.) and map hardware MIDI CCs directly to plugin parameters.
 - **GUI Support**: Show and hide the plugin's native graphical editor window.
 - **State Management**: Save and load plugin state (presets) to/from files.
 - **Transport Sync**: Synchronize plugin timing with built in playhead (BPM, time signature, position, etc.).
@@ -136,6 +136,33 @@ while (true)
 }
 ```
 
+## MIDI CC Mapping
+
+`PluginHost` includes an internal mapping system that routes incoming MIDI CC messages directly to plugin parameters. This is highly efficient as it happens in C++ before the MIDI buffer is processed, avoiding the overhead of triggering ChucK shreds for high-density fader movements.
+
+When a mapped CC message is received:
+1. The 7-bit MIDI value (0-127) is converted to a normalized float (0.0-1.0).
+2. The corresponding plugin parameter is updated immediately.
+3. The MIDI message is still passed through to the plugin's raw MIDI input.
+
+Example:
+```chuck
+// Connect hardware MIDI controller
+plugin.midiControllerEnabled(true);
+
+// Map CC 7 (Volume) to parameter index 0 on MIDI channel 1
+plugin.midiMap(7, 0);
+
+// Map CC 1 (Mod Wheel) to parameter index 15 on MIDI channel 2
+plugin.midiMap(1, 15, 2);
+
+// Clear a specific mapping on channel 1
+plugin.midiUnmap(7);
+
+// Clear all mappings
+plugin.midiUnmapAll();
+```
+
 ## API Reference
 
 ### Loading & Metadata
@@ -165,6 +192,11 @@ while (true)
 - `void noteOn(int note, float velocity, int channel)`: Send Note On (channel 1-16).
 - `void noteOff(int note)`: Send Note Off (channel 1).
 - `void noteOff(int note, int channel)`: Send Note Off (channel 1-16).
+- `void midiMap(int control, int paramIndex)`: Map a MIDI CC to a plugin parameter (channel 1).
+- `void midiMap(int control, int paramIndex, int channel)`: Map a MIDI CC to a plugin parameter (channel 1-16).
+- `void midiUnmap(int control)`: Unmap a MIDI CC (channel 1).
+- `void midiUnmap(int control, int channel)`: Unmap a MIDI CC (channel 1-16).
+- `void midiUnmapAll()`: Clear all MIDI mappings.
 - `void controlChange(int control, float value)`: Send CC (channel 1).
 - `void controlChange(int control, float value, int channel)`: Send CC (channel 1-16).
 - `void pitchBend(float value)`: Send Pitch Bend (-1.0 to 1.0) (channel 1).

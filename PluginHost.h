@@ -129,6 +129,10 @@ public:
     void removeQWERTYMidiInput();
     void toggleQWERTYMidiInput();
 
+    void midiMap(int controlNumber, int paramIndex, int channel);
+    void midiUnmap(int controlNumber, int channel);
+    void midiUnmapAll();
+
     void setMidiControllerEnabled(bool b);
     bool isMidiControllerEnabled() const;
 
@@ -157,6 +161,9 @@ private:
     juce::MidiBuffer m_inputMidi;
     // processed MIDI buffer which will store the midi output
     juce::MidiBuffer m_outputMidi;
+
+    // MIDI CC to parameter mapping [channel][controlNumber]
+    int m_midiMappings[16][128];
 
     // midi controller enabled
     bool m_midiControllerEnabled = false;
