@@ -77,6 +77,8 @@ public:
     int getLatency() const;
     void setBypass(bool b);
     bool getBypass() const;
+    float setGain(float g);
+    float getGain() const;
     void reset();
     int getNumInputs() const;
     int getNumOutputs() const;
@@ -222,4 +224,7 @@ private:
     //      Inside a GG loop, poll asyncEventRunning() each frame instead.
     // Default is false (async).
     bool m_forceSynchronous = false;
+
+    // Output gain
+    float m_gain = 1.0f;
 };

@@ -56,6 +56,8 @@ CK_DLL_MFUN(pluginhost_getBlockSize);
 CK_DLL_MFUN(pluginhost_latency);
 CK_DLL_MFUN(pluginhost_setBypass);
 CK_DLL_MFUN(pluginhost_getBypass);
+CK_DLL_MFUN(pluginhost_setGain);
+CK_DLL_MFUN(pluginhost_getGain);
 CK_DLL_MFUN(pluginhost_reset);
 CK_DLL_MFUN(pluginhost_numInputs);
 CK_DLL_MFUN(pluginhost_numOutputs);
@@ -316,14 +318,14 @@ void PluginHost::tick( SAMPLE * in, SAMPLE * out, int nframes )
             {
                 const float* src = m_renderBuffer.getReadPointer(c);
                 for(int f = 0; f < nframes; f++)
-                    out[f * numChannels + c] = src[f];
+                    out[f * numChannels + c] = src[f] * m_gain;
             }
         }
         else
         {
             // passthrough
             for(int i = 0; i < nframes * numChannels; i++)
-                out[i] = in[i];
+                out[i] = in[i] * m_gain;
         }
         return;
     }
@@ -370,7 +372,7 @@ void PluginHost::tick( SAMPLE * in, SAMPLE * out, int nframes )
         m_outputBuffer.pop(outputs, numChannels);
         
         for(int c = 0; c < numChannels; c++)
-            out[f * numChannels + c] = outputs[c];
+            out[f * numChannels + c] = outputs[c] * m_gain;
     }
 }
 
@@ -707,6 +709,17 @@ void PluginHost::setBypass(bool b)
 bool PluginHost::getBypass() const
 {
     return m_plugin ? m_plugin->isSuspended() : false;
+}
+
+float PluginHost::setGain(float g)
+{
+    m_gain = g;
+    return g;
+}
+
+float PluginHost::getGain() const
+{
+    return m_gain;
 }
 
 void PluginHost::reset()
@@ -1130,6 +1143,13 @@ CK_DLL_QUERY( PluginHost )
 
     QUERY->add_mfun(QUERY, pluginhost_getBypass, "int", "bypass");
     QUERY->doc_func(QUERY, "Get whether the plugin is bypassed.");
+
+    QUERY->add_mfun(QUERY, pluginhost_setGain, "float", "gain");
+    QUERY->add_arg(QUERY, "float", "g");
+    QUERY->doc_func(QUERY, "Set the output gain.");
+
+    QUERY->add_mfun(QUERY, pluginhost_getGain, "float", "gain");
+    QUERY->doc_func(QUERY, "Get the output gain.");
 
     QUERY->add_mfun(QUERY, pluginhost_reset, "void", "reset");
     QUERY->doc_func(QUERY, "Reset the plugin's internal state.");
@@ -1572,6 +1592,20 @@ CK_DLL_MFUN(pluginhost_getBypass)
 {
     PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
     RETURN->v_int = ph_obj ? ph_obj->getBypass() : 0;
+}
+
+CK_DLL_MFUN(pluginhost_setGain)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    t_CKFLOAT g = GET_NEXT_FLOAT(ARGS);
+    if( ph_obj ) ph_obj->setGain((float)g);
+    RETURN->v_float = g;
+}
+
+CK_DLL_MFUN(pluginhost_getGain)
+{
+    PluginHost * ph_obj = (PluginHost *) OBJ_MEMBER_INT(SELF, pluginhost_data_offset);
+    RETURN->v_float = ph_obj ? ph_obj->getGain() : 1.0f;
 }
 
 CK_DLL_MFUN(pluginhost_reset)
